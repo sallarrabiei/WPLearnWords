@@ -1,4 +1,4 @@
-.raswp-container{max-width:720px;margin:20px auto;padding:16px;border:1px solid #ddd;border-radius:8px;background:#fff}
+.raswp-container{max-width:720px;margin:20px auto;padding:16px;border:1px solid #ddd;border-radius:8px;background:#fff;direction:rtl;text-align:right}
 .raswp-controls{display:flex;gap:8px;align-items:center;margin-bottom:12px}
 .raswp-btn{padding:8px 12px;border:1px solid #ccc;background:#f6f6f6;border-radius:6px;cursor:pointer}
 .raswp-btn.primary{background:#0073aa;color:#fff;border-color:#0073aa}
