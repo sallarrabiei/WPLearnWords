@@ -12,17 +12,17 @@ class RASWP_Zarinpal {
 
 	public static function raswp_start_payment() {
 		check_ajax_referer('raswp_nonce', 'nonce');
-		if (!is_user_logged_in()) { wp_send_json_error(['message' => __('Login required', 'wp-learn-word')]); }
+		if (!is_user_logged_in()) { wp_send_json_error(['message' => __('نیاز به ورود', 'wp-learn-word')]); }
 		$user_id = get_current_user_id();
 		$options = self::raswp_get_options();
 		$merchant_id = $options['zarinpal_merchant_id'] ?? '';
 		$amount = intval($options['zarinpal_amount'] ?? 100000);
 		$sandbox = !empty($options['zarinpal_sandbox']);
 		$callback_url = site_url('?raswp_zarinpal_callback=1');
-		$desc = __('WP Learn Word Upgrade', 'wp-learn-word');
+		$desc = __('ارتقای دسترسی در افزونه یادگیری واژه‌ها', 'wp-learn-word');
 
 		if (!$merchant_id) {
-			wp_send_json_error(['message' => __('Zarinpal is not configured.', 'wp-learn-word')]);
+			wp_send_json_error(['message' => __('زرین‌پال پیکربندی نشده است.', 'wp-learn-word')]);
 		}
 
 		$endpoint = $sandbox ? 'https://sandbox.zarinpal.com/pg/v4/payment/request.json' : 'https://api.zarinpal.com/pg/v4/payment/request.json';
@@ -48,7 +48,7 @@ class RASWP_Zarinpal {
 		$data = json_decode(wp_remote_retrieve_body($response), true);
 
 		if ($code !== 200 || empty($data['data']['authority'])) {
-			$error_msg = !empty($data['errors']) ? wp_json_encode($data['errors']) : __('Unexpected error', 'wp-learn-word');
+			$error_msg = !empty($data['errors']) ? wp_json_encode($data['errors']) : __('خطای غیرمنتظره', 'wp-learn-word');
 			wp_send_json_error(['message' => $error_msg]);
 		}
 
@@ -83,7 +83,7 @@ class RASWP_Zarinpal {
 		$status = isset($_GET['Status']) ? sanitize_text_field($_GET['Status']) : '';
 
 		if (!$authority || strtoupper($status) !== 'OK') {
-			wp_die(esc_html__('Payment canceled or failed.', 'wp-learn-word'));
+			wp_die(esc_html__('پرداخت لغو شد یا ناموفق بود.', 'wp-learn-word'));
 		}
 
 		$endpoint = $sandbox ? 'https://sandbox.zarinpal.com/pg/v4/payment/verify.json' : 'https://api.zarinpal.com/pg/v4/payment/verify.json';
@@ -115,9 +115,9 @@ class RASWP_Zarinpal {
 				update_user_meta((int)$order->user_id, 'raswp_is_premium', 1);
 			}
 
-			wp_die(esc_html(sprintf(__('Payment successful. RefID: %s', 'wp-learn-word'), $ref_id)), '', ['response' => 200]);
+			wp_die(esc_html(sprintf(__('پرداخت موفق بود. کد پیگیری: %s', 'wp-learn-word'), $ref_id)), '', ['response' => 200]);
 		} else {
-			$error = !empty($data['errors']) ? wp_json_encode($data['errors']) : __('Verification failed', 'wp-learn-word');
+			$error = !empty($data['errors']) ? wp_json_encode($data['errors']) : __('تأیید پرداخت ناموفق بود', 'wp-learn-word');
 			wp_die(esc_html($error));
 		}
 	}

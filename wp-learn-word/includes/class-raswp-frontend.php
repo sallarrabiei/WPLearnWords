@@ -30,7 +30,7 @@ class RASWP_Frontend {
 			'is_logged_in' => is_user_logged_in() ? 1 : 0,
 			'is_premium' => self::raswp_is_premium(get_current_user_id()) ? 1 : 0,
 			'books' => $book_list,
-			'paywall_msg' => __('You have reached the free limit. Please upgrade to continue.', 'wp-learn-word')
+			'paywall_msg' => __('به محدودیت رایگان رسیدید. برای ادامه ارتقا دهید.', 'wp-learn-word')
 		]);
 	}
 
@@ -38,7 +38,7 @@ class RASWP_Frontend {
 		$options = get_option('raswp_settings', []);
 		$require_login = !empty($options['require_login']);
 		if ($require_login && !is_user_logged_in()) {
-			return '<div class="raswp-container"><p>' . esc_html__('Please log in to study.', 'wp-learn-word') . '</p></div>';
+			return '<div class="raswp-container"><p>' . esc_html__('برای مطالعه وارد شوید.', 'wp-learn-word') . '</p></div>';
 		}
 		wp_enqueue_style('raswp-frontend');
 		wp_enqueue_script('raswp-frontend');
@@ -46,27 +46,28 @@ class RASWP_Frontend {
 		?>
 		<div class="raswp-container" id="raswp-app">
 			<div class="raswp-controls">
-				<label><?php echo esc_html(__('Book', 'wp-learn-word')); ?>: 
+				<label><?php echo esc_html(__('کتاب', 'wp-learn-word')); ?>: 
 					<select id="raswp-book-select"></select>
 				</label>
-				<button id="raswp-start" class="raswp-btn"><?php echo esc_html(__('Start Review', 'wp-learn-word')); ?></button>
+				<button id="raswp-start" class="raswp-btn"><?php echo esc_html(__('شروع مرور', 'wp-learn-word')); ?></button>
 			</div>
 			<div id="raswp-session" class="raswp-session" style="display:none;">
 				<div class="raswp-card">
 					<div class="raswp-word" id="raswp-word"></div>
 					<div class="raswp-translation" id="raswp-translation" style="display:none;"></div>
-					<div class="raswp-example" id="raswp-example" style="display:none;"></div>
+					<div class="raswp-example" id="raswp-example1" style="display:none;"></div>
+					<div class="raswp-example" id="raswp-example2" style="display:none;"></div>
 				</div>
 				<div class="raswp-actions">
-					<button id="raswp-show" class="raswp-btn"><?php echo esc_html(__('Show Answer', 'wp-learn-word')); ?></button>
-					<button id="raswp-knew" class="raswp-btn success" style="display:none;"><?php echo esc_html(__('I knew it', 'wp-learn-word')); ?></button>
-					<button id="raswp-forgot" class="raswp-btn danger" style="display:none;"><?php echo esc_html(__('I forgot', 'wp-learn-word')); ?></button>
+					<button id="raswp-show" class="raswp-btn"><?php echo esc_html(__('نمایش پاسخ', 'wp-learn-word')); ?></button>
+					<button id="raswp-knew" class="raswp-btn success" style="display:none;">&lrm;<?php echo esc_html(__('بلدم', 'wp-learn-word')); ?></button>
+					<button id="raswp-forgot" class="raswp-btn danger" style="display:none;">&lrm;<?php echo esc_html(__('بلد نیستم', 'wp-learn-word')); ?></button>
 				</div>
 				<div class="raswp-progress" id="raswp-progress"></div>
 			</div>
 			<div id="raswp-paywall" class="raswp-paywall" style="display:none;">
-				<p><?php echo esc_html(__('You have reached the free limit. Please upgrade to continue.', 'wp-learn-word')); ?></p>
-				<button id="raswp-upgrade" class="raswp-btn primary"><?php echo esc_html(__('Pay with Zarinpal', 'wp-learn-word')); ?></button>
+				<p><?php echo esc_html(__('به محدودیت رایگان رسیدید. برای ادامه ارتقا دهید.', 'wp-learn-word')); ?></p>
+				<button id="raswp-upgrade" class="raswp-btn primary"><?php echo esc_html(__('پرداخت با زرین‌پال', 'wp-learn-word')); ?></button>
 			</div>
 		</div>
 		<?php
@@ -75,7 +76,18 @@ class RASWP_Frontend {
 
 	public static function raswp_is_premium($user_id) {
 		if (!$user_id) { return false; }
-		return (bool) get_user_meta($user_id, 'raswp_is_premium', true);
+		$is = (bool) get_user_meta($user_id, 'raswp_is_premium', true);
+		if (!$is) { return false; }
+		$expires = (string) get_user_meta($user_id, 'raswp_premium_expires', true);
+		if ($expires) {
+			$ts = strtotime($expires);
+			if ($ts && $ts < current_time('timestamp')) {
+				delete_user_meta($user_id, 'raswp_is_premium');
+				delete_user_meta($user_id, 'raswp_premium_expires');
+				return false;
+			}
+		}
+		return true;
 	}
 
 	public static function raswp_get_words() {
@@ -86,10 +98,9 @@ class RASWP_Frontend {
 		$book_id = isset($_POST['book_id']) ? intval($_POST['book_id']) : 0;
 
 		if (!empty($options['require_login']) && !$user_id) {
-			wp_send_json_error(['message' => __('Login required', 'wp-learn-word')]);
+			wp_send_json_error(['message' => __('نیاز به ورود', 'wp-learn-word')]);
 		}
 
-		// Paywall check
 		$free_limit = intval($options['free_words_limit'] ?? 0);
 		if ($free_limit > 0 && !self::raswp_is_premium($user_id)) {
 			$studied_count = self::raswp_count_user_unique_words($user_id);
@@ -121,7 +132,6 @@ class RASWP_Frontend {
 		$now = current_time('timestamp');
 		$due_ids = [];
 
-		// Fetch due words from progress
 		$where_book = $book_id ? $wpdb->prepare(' AND p.book_id = %d', $book_id) : '';
 		$rows = $wpdb->get_results($wpdb->prepare("SELECT p.word_id, p.leitner_box, p.last_reviewed FROM {$progress_table} p WHERE p.user_id = %d {$where_book}", $user_id));
 		foreach ($rows as $row) {
@@ -135,7 +145,6 @@ class RASWP_Frontend {
 
 		$due_ids = array_unique($due_ids);
 
-		// If not enough due, fill with new words in book
 		$needed = max(0, $limit - count($due_ids));
 		$new_ids = [];
 		if ($needed > 0) {
@@ -169,11 +178,15 @@ class RASWP_Frontend {
 
 		$result = [];
 		foreach ($selected_ids as $wid) {
+			$ex1 = (string) get_post_meta($wid, 'raswp_example_1', true);
+			$ex2 = (string) get_post_meta($wid, 'raswp_example_2', true);
+			if ($ex1 === '') { $ex1 = (string) get_post_meta($wid, 'raswp_example', true); }
 			$result[] = [
 				'id' => $wid,
 				'word' => get_the_title($wid),
 				'translation' => (string) get_post_meta($wid, 'raswp_translation', true),
-				'example' => (string) get_post_meta($wid, 'raswp_example', true)
+				'example1' => $ex1,
+				'example2' => $ex2
 			];
 		}
 		return $result;
@@ -182,7 +195,7 @@ class RASWP_Frontend {
 	public static function raswp_update_progress() {
 		check_ajax_referer('raswp_nonce', 'nonce');
 		$user_id = get_current_user_id();
-		if (!$user_id) { wp_send_json_error(['message' => __('Login required', 'wp-learn-word')]); }
+		if (!$user_id) { wp_send_json_error(['message' => __('نیاز به ورود', 'wp-learn-word')]); }
 		$word_id = isset($_POST['word_id']) ? intval($_POST['word_id']) : 0;
 		$book_id = intval(get_post_meta($word_id, 'raswp_book_id', true));
 		$knew = !empty($_POST['knew']);

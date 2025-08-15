@@ -2,7 +2,7 @@
 	function fillBooks(books) {
 		var $sel = $('#raswp-book-select');
 		$sel.empty();
-		$sel.append($('<option/>',{value:'',text:'— Select —'}));
+		$sel.append($('<option/>',{value:'',text:'— انتخاب —'}));
 		books.forEach(function(b){ $sel.append($('<option/>',{value:b.id,text:b.title})); });
 	}
 
@@ -11,13 +11,14 @@
 	function renderCurrent() {
 		if (session.idx >= session.words.length) {
 			$('#raswp-session').hide();
-			$('#raswp-progress').text('Done. Correct: ' + session.correct + ', Wrong: ' + session.wrong);
+			$('#raswp-progress').text('تمام شد. درست: ' + session.correct + '، نادرست: ' + session.wrong);
 			return;
 		}
 		var w = session.words[session.idx];
 		$('#raswp-word').text(w.word);
 		$('#raswp-translation').text(w.translation).hide();
-		$('#raswp-example').text(w.example || '').hide();
+		$('#raswp-example1').text(w.example1 || '').hide();
+		$('#raswp-example2').text(w.example2 || '').hide();
 		$('#raswp-show').show();
 		$('#raswp-knew,#raswp-forgot').hide();
 		$('#raswp-progress').text((session.idx+1) + ' / ' + session.words.length);
@@ -40,9 +41,9 @@
 			if (res.success && res.data && res.data.redirect) {
 				window.location = res.data.redirect;
 			} else {
-				alert(res.data && res.data.message ? res.data.message : 'Payment init failed');
+				alert(res.data && res.data.message ? res.data.message : 'شروع پرداخت ناموفق بود');
 			}
-		}).fail(function(){ alert('Network error'); });
+		}).fail(function(){ alert('خطای شبکه'); });
 	}
 
 	$(document).on('click', '#raswp-start', function(){
@@ -52,7 +53,7 @@
 			nonce: raswp_data.nonce,
 			book_id: bookId
 		}).done(function(res){
-			if (!res.success) { alert(res.data && res.data.message ? res.data.message : 'Error'); return; }
+			if (!res.success) { alert(res.data && res.data.message ? res.data.message : 'خطا'); return; }
 			if (res.data.paywall) {
 				$('#raswp-session').hide();
 				$('#raswp-paywall').show();
@@ -60,15 +61,15 @@
 			}
 			session.words = res.data.words || [];
 			session.idx = 0; session.correct = 0; session.wrong = 0;
-			if (!session.words.length) { alert('No words to review'); return; }
+			if (!session.words.length) { alert('واژه‌ای برای مرور نیست'); return; }
 			$('#raswp-paywall').hide();
 			$('#raswp-session').show();
 			renderCurrent();
-		}).fail(function(){ alert('Network error'); });
+		}).fail(function(){ alert('خطای شبکه'); });
 	});
 
 	$(document).on('click', '#raswp-show', function(){
-		$('#raswp-translation,#raswp-example').show();
+		$('#raswp-translation,#raswp-example1,#raswp-example2').show();
 		$('#raswp-show').hide();
 		$('#raswp-knew,#raswp-forgot').show();
 	});
@@ -84,7 +85,7 @@
 	});
 
 	$(document).on('click', '#raswp-upgrade', function(){
-		if (!raswp_data.is_logged_in) { alert('Please log in first.'); return; }
+		if (!raswp_data.is_logged_in) { alert('لطفاً ابتدا وارد شوید.'); return; }
 		startPayment();
 	});
 

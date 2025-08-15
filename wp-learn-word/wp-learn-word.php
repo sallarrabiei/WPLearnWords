@@ -1,9 +1,9 @@
 <?php
 /**
  * Plugin Name: WP Learn Word
- * Description: Learn English vocabulary using the Leitner System with books, CSV import, and Zarinpal payments.
+ * Description: یادگیری واژه‌های انگلیسی با سیستم لایتنر، همراه با کتاب‌ها، درون‌ریزی CSV و پرداخت زرین‌پال.
  * Version: 1.0.0
- * Author: Your Name
+ * Author: Sallar Rabiei
  * Text Domain: wp-learn-word
  * Domain Path: /languages
  */
