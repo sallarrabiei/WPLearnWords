@@ -1,0 +1,12 @@
+/* Minimal styles for WP Learn Word */
+.raswp-leitner{max-width:640px;margin:16px auto;padding:12px;border:1px solid #e2e2e2;border-radius:8px;background:#fff}
+.raswp-card{padding:8px}
+.raswp-word{font-size:28px;font-weight:600;margin:12px 0}
+.raswp-translation{font-size:20px;color:#333;margin:8px 0}
+.raswp-example{font-size:14px;color:#666;margin:8px 0}
+.raswp-actions{margin-top:12px}
+.raswp-btn{background:#0073aa;color:#fff;border:none;border-radius:4px;padding:8px 12px;margin-right:8px;cursor:pointer}
+.raswp-btn:hover{background:#005f8d}
+.raswp-upgrade-box{margin-top:12px;padding:12px;border:1px dashed #ccc;border-radius:6px}
+.raswp-status{margin-top:8px;color:#777}
+.raswp-message{padding:8px;background:#f6f7f7;border:1px solid #ddd;border-radius:4px}
