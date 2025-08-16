@@ -14,7 +14,8 @@ class RASWP_Admin {
 			'manage_options',
 			'raswp',
 			[__CLASS__, 'raswp_render_dashboard'],
-			'dashicons-yes-alt'
+			'dashicons-yes-alt',
+			21
 		);
 
 		add_submenu_page('raswp', __('تنظیمات', 'wp-learn-word'), __('تنظیمات', 'wp-learn-word'), 'manage_options', 'raswp-settings', [__CLASS__, 'raswp_render_settings']);
