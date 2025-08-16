@@ -37,6 +37,7 @@ class RASWP_Activator {
 		$sql2 = "CREATE TABLE {$orders_table} (
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			user_id BIGINT UNSIGNED NULL,
+			plan_id BIGINT UNSIGNED NULL,
 			amount BIGINT UNSIGNED NOT NULL,
 			authority VARCHAR(64) NULL,
 			ref_id VARCHAR(64) NULL,

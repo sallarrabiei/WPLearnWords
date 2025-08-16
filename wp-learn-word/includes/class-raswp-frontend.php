@@ -21,6 +21,19 @@ class RASWP_Frontend {
 		foreach ($books as $book_id) {
 			$book_list[] = ['id' => $book_id, 'title' => get_the_title($book_id)];
 		}
+		$plans_option = get_option('raswp_plans', []);
+		$plans_list = [];
+		if (is_array($plans_option)) {
+			foreach ($plans_option as $pl) {
+				if (empty($pl['id']) || empty($pl['name']) || empty($pl['amount'])) { continue; }
+				$plans_list[] = [
+					'id' => (int) $pl['id'],
+					'name' => (string) $pl['name'],
+					'amount' => (int) $pl['amount'],
+					'duration_days' => isset($pl['duration_days']) ? (int) $pl['duration_days'] : 0,
+				];
+			}
+		}
 
 		wp_localize_script('raswp-frontend', 'raswp_data', [
 			'ajax_url' => admin_url('admin-ajax.php'),
@@ -30,6 +43,7 @@ class RASWP_Frontend {
 			'is_logged_in' => is_user_logged_in() ? 1 : 0,
 			'is_premium' => self::raswp_is_premium(get_current_user_id()) ? 1 : 0,
 			'books' => $book_list,
+			'plans' => $plans_list,
 			'paywall_msg' => __('به محدودیت رایگان رسیدید. برای ادامه ارتقا دهید.', 'wp-learn-word')
 		]);
 	}
@@ -67,6 +81,10 @@ class RASWP_Frontend {
 			</div>
 			<div id="raswp-paywall" class="raswp-paywall" style="display:none;">
 				<p><?php echo esc_html(__('به محدودیت رایگان رسیدید. برای ادامه ارتقا دهید.', 'wp-learn-word')); ?></p>
+				<div class="raswp-plan-picker">
+					<label for="raswp-plan-select"><?php echo esc_html(__('انتخاب پلن', 'wp-learn-word')); ?>:</label>
+					<select id="raswp-plan-select"></select>
+				</div>
 				<button id="raswp-upgrade" class="raswp-btn primary"><?php echo esc_html(__('پرداخت با زرین‌پال', 'wp-learn-word')); ?></button>
 			</div>
 		</div>

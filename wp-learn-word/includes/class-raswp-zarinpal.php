@@ -21,6 +21,20 @@ class RASWP_Zarinpal {
 		$callback_url = site_url('?raswp_zarinpal_callback=1');
 		$desc = __('ارتقای دسترسی در افزونه یادگیری واژه‌ها', 'wp-learn-word');
 
+		$plan_id = isset($_POST['plan_id']) ? intval($_POST['plan_id']) : 0;
+		$plans = get_option('raswp_plans', []);
+		$plan_name = '';
+		if ($plan_id && is_array($plans)) {
+			foreach ($plans as $pl) {
+				if ((int)($pl['id'] ?? 0) === $plan_id) {
+					$amount = max(1000, intval($pl['amount'] ?? $amount));
+					$plan_name = (string) ($pl['name'] ?? '');
+					break;
+				}
+			}
+		}
+		if ($plan_name) { $desc .= ' - ' . $plan_name; }
+
 		if (!$merchant_id) {
 			wp_send_json_error(['message' => __('زرین‌پال پیکربندی نشده است.', 'wp-learn-word')]);
 		}
@@ -61,7 +75,8 @@ class RASWP_Zarinpal {
 		$wpdb->insert($table, [
 			'user_id' => $user_id,
 			'amount' => $amount,
-			'autority' => $authority,
+			'plan_id' => $plan_id ?: null,
+			'authority' => $authority,
 			'status' => 'pending',
 			'created_at' => $now,
 			'updated_at' => $now,
@@ -77,7 +92,6 @@ class RASWP_Zarinpal {
 		$options = self::raswp_get_options();
 		$sandbox = !empty($options['zarinpal_sandbox']);
 		$merchant_id = $options['zarinpal_merchant_id'] ?? '';
-		$amount = intval($options['zarinpal_amount'] ?? 100000);
 
 		$authority = isset($_GET['Authority']) ? sanitize_text_field($_GET['Authority']) : '';
 		$status = isset($_GET['Status']) ? sanitize_text_field($_GET['Status']) : '';
@@ -85,6 +99,15 @@ class RASWP_Zarinpal {
 		if (!$authority || strtoupper($status) !== 'OK') {
 			wp_die(esc_html__('پرداخت لغو شد یا ناموفق بود.', 'wp-learn-word'));
 		}
+
+		// Load order to get amount and plan
+		global $wpdb;
+		$orders = $wpdb->prefix . 'raswp_orders';
+		$order = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$orders} WHERE authority = %s", $authority));
+		if (!$order) {
+			wp_die(esc_html__('سفارش پیدا نشد.', 'wp-learn-word'));
+		}
+		$amount = (int) $order->amount;
 
 		$endpoint = $sandbox ? 'https://sandbox.zarinpal.com/pg/v4/payment/verify.json' : 'https://api.zarinpal.com/pg/v4/payment/verify.json';
 
@@ -107,12 +130,22 @@ class RASWP_Zarinpal {
 			$ref_id = sanitize_text_field((string)$data['data']['ref_id']);
 
 			// Mark order and user premium
-			global $wpdb;
-			$orders = $wpdb->prefix . 'raswp_orders';
 			$wpdb->update($orders, [ 'status' => 'paid', 'ref_id' => $ref_id, 'updated_at' => current_time('mysql') ], [ 'authority' => $authority ]);
-			$order = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$orders} WHERE authority = %s", $authority));
 			if ($order && $order->user_id) {
 				update_user_meta((int)$order->user_id, 'raswp_is_premium', 1);
+				// Set expiry if plan duration is set
+				$plans = get_option('raswp_plans', []);
+				$duration_days = 0;
+				if ($order->plan_id && is_array($plans)) {
+					foreach ($plans as $pl) {
+						if ((int)($pl['id'] ?? 0) === (int)$order->plan_id) { $duration_days = (int)($pl['duration_days'] ?? 0); break; }
+					}
+				}
+				if ($duration_days > 0) {
+					$ts = current_time('timestamp') + ($duration_days * DAY_IN_SECONDS);
+					$expires = date('Y-m-d', $ts);
+					update_user_meta((int)$order->user_id, 'raswp_premium_expires', $expires);
+				}
 			}
 
 			wp_die(esc_html(sprintf(__('پرداخت موفق بود. کد پیگیری: %s', 'wp-learn-word'), $ref_id)), '', ['response' => 200]);
