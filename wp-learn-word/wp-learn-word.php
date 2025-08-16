@@ -51,10 +51,9 @@ function raswp_init_components() {
 }
 add_action('init', 'raswp_init_components');
 
-function raswp_admin_init_components() {
+if (is_admin()) {
 	RASWP_Admin::raswp_register_admin();
 }
-add_action('admin_init', 'raswp_admin_init_components');
 
 function raswp_plugins_loaded() {
 	RASWP_Frontend::raswp_bootstrap_frontend();
