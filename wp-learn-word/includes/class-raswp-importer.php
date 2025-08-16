@@ -6,7 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class RASWP_Importer {
 	public static function import_from_csv( $filepath, $book_id ) {
 		$imported = 0;
-		skipped = 0;
+		$skipped = 0;
 
 		if ( ! file_exists( $filepath ) ) {
 			return array( 'imported' => 0, 'skipped' => 0 );

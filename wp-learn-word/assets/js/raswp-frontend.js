@@ -6,6 +6,20 @@
 		books.forEach(function(b){ $sel.append($('<option/>',{value:b.id,text:b.title})); });
 	}
 
+	function fillPlans(plans){
+		var $sel = $('#raswp-plan-select');
+		if (!$sel.length) return;
+		$sel.empty();
+		if (!plans || !plans.length) {
+			$sel.append($('<option/>',{value:'',text:'—'}));
+			return;
+		}
+		plans.forEach(function(p){
+			var label = p.name + ' - ' + (p.amount||0).toLocaleString('fa-IR') + ' ' + 'ریال' + (p.duration_days ? (' / ' + p.duration_days + ' روز') : '');
+			$sel.append($('<option/>',{value:p.id,text:label}));
+		});
+	}
+
 	var session = { words: [], idx: 0, correct: 0, wrong: 0 };
 
 	function renderCurrent() {
@@ -33,17 +47,17 @@
 		});
 	}
 
-	function startPayment() {
-		$.post(raswp_data.ajax_url, {
-			action: 'raswp_start_payment',
-			nonce: raswp_data.nonce
-		}).done(function(res){
-			if (res.success && res.data && res.data.redirect) {
-				window.location = res.data.redirect;
-			} else {
-				alert(res.data && res.data.message ? res.data.message : 'شروع پرداخت ناموفق بود');
-			}
-		}).fail(function(){ alert('خطای شبکه'); });
+	function startPayment(planId) {
+		var payload = { action: 'raswp_start_payment', nonce: raswp_data.nonce };
+		if (planId) { payload.plan_id = planId; }
+		$.post(raswp_data.ajax_url, payload)
+			.done(function(res){
+				if (res.success && res.data && res.data.redirect) {
+					window.location = res.data.redirect;
+				} else {
+					alert(res.data && res.data.message ? res.data.message : 'شروع پرداخت ناموفق بود');
+				}
+			}).fail(function(){ alert('خطای شبکه'); });
 	}
 
 	$(document).on('click', '#raswp-start', function(){
@@ -86,8 +100,9 @@
 
 	$(document).on('click', '#raswp-upgrade', function(){
 		if (!raswp_data.is_logged_in) { alert('لطفاً ابتدا وارد شوید.'); return; }
-		startPayment();
+		var planId = $('#raswp-plan-select').val();
+		startPayment(planId);
 	});
 
-	$(function(){ fillBooks(raswp_data.books || []); });
+	$(function(){ fillBooks(raswp_data.books || []); fillPlans(raswp_data.plans || []); });
 })(jQuery);

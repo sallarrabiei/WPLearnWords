@@ -23,6 +23,7 @@ class RASWP_Admin {
 		add_submenu_page('raswp', __('واژه‌ها', 'wp-learn-word'), __('واژه‌ها', 'wp-learn-word'), 'manage_options', 'edit.php?post_type=raswp_word');
 		add_submenu_page('raswp', __('مدیریت کاربران', 'wp-learn-word'), __('مدیریت کاربران', 'wp-learn-word'), 'manage_options', 'raswp-users', [__CLASS__, 'raswp_render_users']);
 		add_submenu_page('raswp', __('اشتراک‌ها', 'wp-learn-word'), __('اشتراک‌ها', 'wp-learn-word'), 'manage_options', 'raswp-subscriptions', [__CLASS__, 'raswp_render_subscriptions']);
+		add_submenu_page('raswp', __('پلن‌ها', 'wp-learn-word'), __('پلن‌ها', 'wp-learn-word'), 'manage_options', 'raswp-plans', [__CLASS__, 'raswp_render_plans']);
 	}
 
 	public static function raswp_register_settings() {
@@ -274,6 +275,9 @@ class RASWP_Admin {
 
 		global $wpdb; $orders_table = $wpdb->prefix . 'raswp_orders';
 		$orders = $wpdb->get_results("SELECT * FROM {$orders_table} ORDER BY id DESC LIMIT 100");
+		$plans = get_option('raswp_plans', []);
+		$plan_map = [];
+		foreach ($plans as $pl) { if (!empty($pl['id'])) { $plan_map[(int)$pl['id']] = $pl; } }
 		?>
 		<div class="wrap">
 			<h1><?php echo esc_html(__('اشتراک‌ها', 'wp-learn-word')); ?></h1>
@@ -294,6 +298,7 @@ class RASWP_Admin {
 						<th><?php echo esc_html(__('شناسه', 'wp-learn-word')); ?></th>
 						<th><?php echo esc_html(__('کاربر', 'wp-learn-word')); ?></th>
 						<th><?php echo esc_html(__('مبلغ', 'wp-learn-word')); ?></th>
+						<th><?php echo esc_html(__('پلن', 'wp-learn-word')); ?></th>
 						<th><?php echo esc_html(__('کد Authority', 'wp-learn-word')); ?></th>
 						<th><?php echo esc_html(__('کد پیگیری (RefID)', 'wp-learn-word')); ?></th>
 						<th><?php echo esc_html(__('وضعیت', 'wp-learn-word')); ?></th>
@@ -301,11 +306,12 @@ class RASWP_Admin {
 					</tr>
 				</thead>
 				<tbody>
-				<?php if ($orders) foreach ($orders as $o): ?>
+				<?php if ($orders) foreach ($orders as $o): $plan = isset($plan_map[(int)($o->plan_id ?? 0)]) ? $plan_map[(int)$o->plan_id] : null; ?>
 					<tr>
 						<td><?php echo esc_html($o->id); ?></td>
 						<td><?php echo esc_html($o->user_id); ?></td>
 						<td><?php echo esc_html(number_format_i18n((int)$o->amount)); ?></td>
+						<td><?php echo $plan ? esc_html($plan['name']) : '—'; ?></td>
 						<td><?php echo esc_html($o->authority ?: '—'); ?></td>
 						<td><?php echo esc_html($o->ref_id ?: '—'); ?></td>
 						<td><?php echo esc_html($o->status); ?></td>
@@ -314,6 +320,95 @@ class RASWP_Admin {
 				<?php endforeach; ?>
 				</tbody>
 			</table>
+		</div>
+		<?php
+	}
+
+	public static function raswp_render_plans() {
+		$notice = '';
+		$plans = get_option('raswp_plans', []);
+		if (!is_array($plans)) { $plans = []; }
+
+		if (!empty($_POST['raswp_add_plan'])) {
+			check_admin_referer('raswp_plans');
+			$name = sanitize_text_field($_POST['plan_name'] ?? '');
+			$amount = max(1000, intval($_POST['plan_amount'] ?? 0));
+			$duration = max(0, intval($_POST['plan_duration_days'] ?? 0));
+			$desc = sanitize_textarea_field($_POST['plan_description'] ?? '');
+			if ($name && $amount) {
+				$next_id = 1;
+				foreach ($plans as $p) { if (!empty($p['id'])) { $next_id = max($next_id, (int)$p['id'] + 1); } }
+				$plans[] = [ 'id' => $next_id, 'name' => $name, 'amount' => $amount, 'duration_days' => $duration, 'description' => $desc ];
+				update_option('raswp_plans', $plans);
+				$notice = __('پلن جدید اضافه شد.', 'wp-learn-word');
+			} else {
+				$notice = __('نام و مبلغ پلن الزامی است.', 'wp-learn-word');
+			}
+		}
+
+		if (!empty($_GET['raswp_delete_plan'])) {
+			check_admin_referer('raswp_delete_plan');
+			$delete_id = intval($_GET['raswp_delete_plan']);
+			$new = [];
+			foreach ($plans as $p) { if ((int)$p['id'] !== $delete_id) { $new[] = $p; } }
+			$plans = $new;
+			update_option('raswp_plans', $plans);
+			$notice = __('پلن حذف شد.', 'wp-learn-word');
+		}
+		?>
+		<div class="wrap">
+			<h1><?php echo esc_html(__('پلن‌های اشتراک', 'wp-learn-word')); ?></h1>
+			<?php if ($notice): ?><div class="notice notice-info"><p><?php echo esc_html($notice); ?></p></div><?php endif; ?>
+			<h2><?php echo esc_html(__('پلن‌های موجود', 'wp-learn-word')); ?></h2>
+			<table class="widefat">
+				<thead>
+					<tr>
+						<th><?php echo esc_html(__('شناسه', 'wp-learn-word')); ?></th>
+						<th><?php echo esc_html(__('نام پلن', 'wp-learn-word')); ?></th>
+						<th><?php echo esc_html(__('مبلغ (ریال)', 'wp-learn-word')); ?></th>
+						<th><?php echo esc_html(__('مدت (روز)', 'wp-learn-word')); ?></th>
+						<th><?php echo esc_html(__('اقدامات', 'wp-learn-word')); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+				<?php if (!empty($plans)) foreach ($plans as $p): ?>
+					<tr>
+						<td><?php echo esc_html((int)$p['id']); ?></td>
+						<td><?php echo esc_html($p['name']); ?></td>
+						<td><?php echo esc_html(number_format_i18n((int)$p['amount'])); ?></td>
+						<td><?php echo esc_html((int)$p['duration_days']); ?></td>
+						<td>
+							<a class="button button-small" href="<?php echo esc_url( wp_nonce_url( admin_url('admin.php?page=raswp-plans&raswp_delete_plan='.(int)$p['id']), 'raswp_delete_plan' ) ); ?>" onclick="return confirm('<?php echo esc_js(__('حذف این پلن؟', 'wp-learn-word')); ?>');"><?php echo esc_html(__('حذف', 'wp-learn-word')); ?></a>
+						</td>
+					</tr>
+				<?php endforeach; ?>
+				</tbody>
+			</table>
+
+			<h2 style="margin-top:20px;">&lrm;<?php echo esc_html(__('افزودن پلن جدید', 'wp-learn-word')); ?></h2>
+			<form method="post">
+				<?php wp_nonce_field('raswp_plans'); ?>
+				<input type="hidden" name="raswp_add_plan" value="1" />
+				<table class="form-table" role="presentation">
+					<tr>
+						<th><?php echo esc_html(__('نام پلن', 'wp-learn-word')); ?></th>
+						<td><input type="text" class="regular-text" name="plan_name" required /></td>
+					</tr>
+					<tr>
+						<th><?php echo esc_html(__('مبلغ (ریال)', 'wp-learn-word')); ?></th>
+						<td><input type="number" name="plan_amount" min="1000" value="100000" required /></td>
+					</tr>
+					<tr>
+						<th><?php echo esc_html(__('مدت (روز)', 'wp-learn-word')); ?></th>
+						<td><input type="number" name="plan_duration_days" min="0" value="30" /> <p class="description"><?php echo esc_html(__('صفر یعنی بدون انقضا', 'wp-learn-word')); ?></p></td>
+					</tr>
+					<tr>
+						<th><?php echo esc_html(__('توضیحات', 'wp-learn-word')); ?></th>
+						<td><textarea name="plan_description" class="regular-text" rows="3"></textarea></td>
+					</tr>
+				</table>
+				<?php submit_button( __('افزودن پلن', 'wp-learn-word') ); ?>
+			</form>
 		</div>
 		<?php
 	}
